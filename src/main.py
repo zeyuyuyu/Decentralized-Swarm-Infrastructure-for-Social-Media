@@ -1,50 +1,33 @@
-import hashlib
-import time
-from typing import Dict
+import asyncio
+import ipfs_api
+import swarm_protocol
 
-class ReputationManager:
-    def __init__(self):
-        self.reputation_scores: Dict[str, float] = {}
-        self.reputation_history: Dict[str, list] = {}
+async def distribute_content(content):
+    """Distribute content across the decentralized swarm network"""
+    # Store content on IPFS
+    cid = await ipfs_api.add_content(content)
+    
+    # Broadcast content availability across swarm
+    await swarm_protocol.broadcast_content(cid)
+    
+    # Replicate content across swarm nodes
+    await swarm_protocol.replicate_content(cid)
+    
+    return cid
 
-    def update_reputation(self, user_id: str, score_change: float):
-        if user_id not in self.reputation_scores:
-            self.reputation_scores[user_id] = 0.0
-        self.reputation_scores[user_id] += score_change
-        self.reputation_history.setdefault(user_id, []).append((time.time(), score_change))
-
-    def get_reputation_score(self, user_id: str) -> float:
-        return self.reputation_scores.get(user_id, 0.0)
-
-    def get_reputation_history(self, user_id: str) -> list:
-        return self.reputation_history.get(user_id, [])
-
-class Post:
-    def __init__(self, content: str, author_id: str):
-        self.content = content
-        self.author_id = author_id
-        self.timestamp = time.time()
-        self.hash = self.calculate_hash()
-
-    def calculate_hash(self) -> str:
-        return hashlib.sha256((self.content + str(self.timestamp) + self.author_id).encode()).hexdigest()
-
-class SocialMediaApp:
-    def __init__(self):
-        self.reputation_manager = ReputationManager()
-        self.posts: list[Post] = []
-
-    def create_post(self, content: str, author_id: str):
-        post = Post(content, author_id)
-        self.posts.append(post)
-        self.reputation_manager.update_reputation(author_id, 1.0)
-        return post
-
-    def get_posts(self) -> list[Post]:
-        return self.posts
-
-    def get_user_reputation(self, user_id: str) -> float:
-        return self.reputation_manager.get_reputation_score(user_id)
-
-    def get_user_reputation_history(self, user_id: str) -> list:
-        return self.reputation_manager.get_reputation_history(user_id)
+async def fetch_content(cid):
+    """Fetch content from the decentralized swarm network"""
+    # Request content from swarm nodes
+    content = await swarm_protocol.fetch_content(cid)
+    
+    # Verify content integrity
+    if await ipfs_api.verify_content(cid, content):
+        return content
+    else:
+        raise ValueError("Content integrity check failed")
+        
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(distribute_content("Hello, Decentralized World!"))
+    content = loop.run_until_complete(fetch_content("QmXYZ123456"))
+    print(content)
